@@ -1,0 +1,40 @@
+---
+- name: Configure and Enable Chrony
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Install Chrony
+      yum:
+        name: chrony
+        state: present
+    - name: Comment out default NTP servers
+      lineinfile:
+        path: /etc/chrony.conf
+        regexp: '^(pool 2.centos.pool.ntp.org)'
+        line: '#\1'
+        backrefs: yes
+      notify: restart chrony
+    - name: Configure Chrony servers and allowed network
+      blockinfile:
+        path: /etc/chrony.conf
+        block: |
+          pool ntp.nict.jp iburst
+          allow 192.168.0.0/16
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+      notify: restart chrony
+
+    - name: Enable and start Chrony
+      systemd:
+        name: chronyd
+        enabled: yes
+        state: started
+    - name: Add NTP service to firewalld
+      command: firewall-cmd --add-service=ntp
+
+    - name: Make firewalld changes permanent
+      command: firewall-cmd --runtime-to-permanent
+  handlers:
+    - name: restart chrony
+      systemd:
+        name: chronyd
+        state: restarted

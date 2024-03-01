@@ -1,0 +1,38 @@
+---
+- name: Configure and Enable Chrony
+  hosts: localhost
+  become: yes
+  tasks:
+   - name: Install the OpenStack Antelope release package
+     dnf:
+        name: centos-release-openstack-antelope
+        state: present
+
+   - name: Disable the OpenStack Antelope repo by default
+     lineinfile:
+        path: /etc/yum.repos.d/CentOS-OpenStack-antelope.repo
+        regexp: '^enabled=1'
+        line: 'enabled=0'
+        state: present
+
+   - name: Upgrade all packages with OpenStack Antelope repo enabled
+     dnf:
+        name: '*'
+        state: latest
+        enablerepo: centos-openstack-antelope
+   - name: Install RabbitMQ, Memcached, Nginx.
+     command: dnf -y install rabbitmq-server memcached nginx-mod-stream
+   - name: Configure mysqld
+     lineinfile:
+        path: /etc/my.cnf.d/mariadb-server.cnf
+        regexp: '^max_connections='
+        line: 'max_connections=1024'
+        create: yes
+   - name: Configure memcached
+     lineinfile:
+        path: /etc/sysconfig/memcached
+        regexp: '^OPTIONS='
+        line: 'OPTIONS="-l 0.0.0.0,::"'
+        state: present
+
+          

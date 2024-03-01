@@ -1,0 +1,44 @@
+---
+- name: Create and Install Custom SELinux Module for rabbitmqctl
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Create SELinux module source file
+      copy:
+        dest: /root/rabbitmqctl.te
+        content: |
+          module rabbitmqctl 1.0;
+
+          require {
+                  type rabbitmq_t;
+                  type tmpfs_t;
+                  type init_var_run_t;
+                  class sock_file { getattr read };
+                  class file { execute map read write };
+                  class process execmem;
+          }
+
+          #============= rabbitmq_t ==============
+          allow rabbitmq_t self:process execmem;
+          allow rabbitmq_t tmpfs_t:file { execute read write };
+          allow rabbitmq_t tmpfs_t:file map;
+          allow rabbitmq_t init_var_run_t:sock_file { getattr read };
+        mode: '0644'
+
+    - name: Compile SELinux module
+      command: checkmodule -m -M -o /root/rabbitmqctl.mod /root/rabbitmqctl.te
+
+    - name: Create SELinux module package
+      command: semodule_package --outfile /root/rabbitmqctl.pp --module /root/rabbitmqctl.mod
+
+    - name: Install SELinux module
+      command: semodule -i /root/rabbitmqctl.pp
+
+    - name: Allow firewall --add-service={mysql,memcache}
+      command: firewall-cmd --add-service={mysql,memcache}
+
+    - name: firewall-cmd --add-port=5672/tcp
+      command: firewall-cmd --add-port=5672/tcp
+
+    - name: firewall-cmd --runtime-to-permanent
+      command: firewall-cmd --runtime-to-permanent

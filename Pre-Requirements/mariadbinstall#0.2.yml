@@ -1,0 +1,25 @@
+
+- name: Download and configure Mariadbv1.0
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Install MariaDB
+      command: dnf -y install mariadb-server
+    - name: Configure MariaDB
+      lineinfile:
+        path: /etc/my.cnf.d/charset.cnf
+        insertafter: '^\[mysqld\]'
+        line: 'character-set-server = utf8mb4'
+        create: yes
+    - name: MariaDB  under [client]
+      lineinfile:
+        path: /etc/my.cnf.d/charset.cnf
+        insertafter: '^\[client\]'
+        line: 'default-character-set = utf8mb4'
+        create: yes
+    - name: Systemctl enable  mariadb
+      command: systemctl enable --now mariadb
+    - name: Add mariadb to firewall
+      command: firewall-cmd --add-service=mysql
+      command: firewall-cmd --runtime-to-permanent
+    - name: After install dont forget to configure initial Settings for MariaDB mysql_secure_installation

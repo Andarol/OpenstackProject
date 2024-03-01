@@ -1,0 +1,35 @@
+---
+- name: Setup MySQL for Keystone
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Create database
+      mysql_db:
+        name: keystone
+      register: db_created
+
+    - name: Grant privileges to keystone user from localhost
+      mysql_user:
+        name: keystone
+        host: localhost
+        password: password
+        priv: 'keystone.*:ALL'
+        state: present
+      when: db_created.changed
+
+    - name: Grant privileges to keystone user from any host
+      mysql_user:
+        name: keystone
+        host: '%'
+        password: password
+        priv: 'keystone.*:ALL'
+        state: present
+      when: db_created.changed
+
+    - name: Flush privileges
+      mysql_db:
+        name: keystone
+        state: flush
+      when: db_created.changed
+    - name: Install Keystone
+      command: dnf --enablerepo=centos-openstack-antelope,epel -y install openstack-keystone python3-openstackclient httpd mod_ssl python3-mod_wsgi python3-oauth2client mod_ssl

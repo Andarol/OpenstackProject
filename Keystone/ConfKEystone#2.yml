@@ -1,0 +1,56 @@
+---
+- name: Configure Keystone
+  hosts: localhost
+  become: true
+  vars_prompt:
+    - name: keystone_host
+      prompt: "Enter the Keystone host (e.g., dlp.srv.world): "
+  vars:
+    admin_password: "adminpassword"
+  tasks:
+    - name: Update keystone.conf for Memcache server
+      lineinfile:
+        path: /etc/keystone/keystone.conf
+        line: "memcache_servers = {{ keystone_host }}:11211"
+        insertafter: EOF
+      become: true
+
+    - name: Update keystone.conf for MariaDB connection info
+      lineinfile:
+        path: /etc/keystone/keystone.conf
+        line: "connection = mysql+pymysql://keystone:password@{{ keystone_host }}/keystone"
+        insertafter: EOF
+      become: true
+
+    - name: Enable fernet token provider
+      lineinfile:
+        path: /etc/keystone/keystone.conf
+        line: "provider = fernet"
+        insertafter: EOF
+      become: true
+
+    - name: Run keystone-manage db_sync
+      command: "su -s /bin/bash keystone -c 'keystone-manage db_sync'"
+      become: true
+
+    - name: Run keystone-manage fernet_setup
+      command: "keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone"
+      become: true
+
+    - name: Run keystone-manage credential_setup
+      command: "keystone-manage credential_setup --keystone-user keystone --keystone-group keystone"
+      become: true
+
+    - name: Set environment variable for Keystone host
+      shell: "export controller={{ keystone_host }}"
+      become: true
+
+    - name: Bootstrap Keystone
+      command: >
+        keystone-manage bootstrap
+        --bootstrap-password {{ admin_password }}
+        --bootstrap-admin-url https://{{ keystone_host }}:5000/v3/
+        --bootstrap-internal-url https://{{ keystone_host }}:5000/v3/
+        --bootstrap-public-url https://{{ keystone_host }}:5000/v3/
+        --bootstrap-region-id RegionOne
+      become: true
